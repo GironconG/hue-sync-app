@@ -57,7 +57,7 @@ class MediaEngine:
                 "Content-Type": "application/x-www-form-urlencoded"
             })
             res = urllib.request.urlopen(req, timeout=5)
-            if res.status_code == 200:
+            if res.status == 200:
                 data = json.loads(res.read().decode('utf-8'))
                 self.spotify_access_token = data.get("access_token")
                 self.spotify_refresh_token = data.get("refresh_token")
@@ -88,7 +88,7 @@ class MediaEngine:
                 "Content-Type": "application/x-www-form-urlencoded"
             })
             res = urllib.request.urlopen(req, timeout=5)
-            if res.status_code == 200:
+            if res.status == 200:
                 data = json.loads(res.read().decode('utf-8'))
                 self.spotify_access_token = data.get("access_token")
                 if data.get("refresh_token"):
@@ -116,7 +116,7 @@ class MediaEngine:
                 "User-Agent": "HueSync/1.0"
             })
             res = urllib.request.urlopen(req, timeout=3)
-            if res.status_code == 200:
+            if res.status == 200:
                 data = json.loads(res.read().decode('utf-8'))
                 if data and "item" in data and data["item"]:
                     item = data["item"]
