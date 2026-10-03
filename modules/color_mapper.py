@@ -79,11 +79,13 @@ class ColorMapper:
             # Base color selection per bulb from palette
             base_h, base_s, base_v = palette[i % len(palette)]
             
-            # Dynamic Hue offset per bulb based on music
-            final_hue = (base_h + self.hue_shift + (i * 0.15)) % 1.0
-            
-            # Saturation boosts with mids
-            final_sat = float(max(0.4, min(1.0, base_s * (0.7 + mids * 0.5))))
+            # Preserve true album art colors if selected, otherwise shift hue over time
+            if self.palette_name == "album_art":
+                final_hue = base_h
+                final_sat = float(max(0.3, min(1.0, base_s)))
+            else:
+                final_hue = (base_h + self.hue_shift + (i * 0.15)) % 1.0
+                final_sat = float(max(0.4, min(1.0, base_s * (0.7 + mids * 0.5))))
 
             # Brightness calculation:
             brightness = float(min(1.0, 0.15 + (mids * 0.5) + (bass * 0.35)))

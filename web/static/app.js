@@ -145,6 +145,14 @@ let browserAudioCtx = null;
 let browserAnalyser = null;
 let browserAudioInterval = null;
 
+function resumeBrowserAudioContext() {
+    if (browserAudioCtx && browserAudioCtx.state === 'suspended') {
+        browserAudioCtx.resume();
+    }
+}
+document.addEventListener('click', resumeBrowserAudioContext);
+document.addEventListener('touchstart', resumeBrowserAudioContext);
+
 function startBrowserAudioProcessing(stream) {
     if (browserAudioInterval) clearInterval(browserAudioInterval);
     if (browserAudioCtx) {
@@ -152,6 +160,9 @@ function startBrowserAudioProcessing(stream) {
     }
 
     browserAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (browserAudioCtx.state === 'suspended') {
+        browserAudioCtx.resume();
+    }
     const source = browserAudioCtx.createMediaStreamSource(stream);
     browserAnalyser = browserAudioCtx.createAnalyser();
     browserAnalyser.fftSize = 512;
