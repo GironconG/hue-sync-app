@@ -221,11 +221,13 @@ async def spotify_auth_direct(payload: DirectTokenPayload):
 
 @app.post("/api/save_spotify_client")
 async def save_spotify_client(payload: SpotifyClientPayload):
+    cfg = load_config()
+    secret = payload.client_secret if payload.client_secret else (cfg.get("spotify_client_secret") or DEFAULT_SPOTIFY_CLIENT_SECRET)
     save_config({
         "spotify_client_id": payload.client_id,
-        "spotify_client_secret": payload.client_secret
+        "spotify_client_secret": secret
     })
-    media_engine.set_spotify_credentials(client_id=payload.client_id, client_secret=payload.client_secret)
+    media_engine.set_spotify_credentials(client_id=payload.client_id, client_secret=secret)
     return {"success": True, "message": "Credenciales de Spotify guardadas."}
 
 @app.post("/api/search_media")
