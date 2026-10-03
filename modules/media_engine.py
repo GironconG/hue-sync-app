@@ -1,8 +1,10 @@
 import io
 import time
 import json
+import base64
 import urllib.request
 import urllib.parse
+import urllib.error
 import colorsys
 import numpy as np
 try:
@@ -44,18 +46,23 @@ class MediaEngine:
         """Exchanges Spotify OAuth authorization code for Access Token & Refresh Token."""
         try:
             url = "https://accounts.spotify.com/api/token"
-            payload = urllib.parse.urlencode({
+            payload_dict = {
                 "grant_type": "authorization_code",
                 "code": code,
                 "redirect_uri": redirect_uri,
-                "client_id": client_id,
-            })
-            if client_secret:
-                payload += "&" + urllib.parse.urlencode({"client_secret": client_secret})
-
-            req = urllib.request.Request(url, data=payload.encode('utf-8'), headers={
+            }
+            headers = {
                 "Content-Type": "application/x-www-form-urlencoded"
-            })
+            }
+            if client_id and client_secret:
+                auth_str = f"{client_id}:{client_secret}"
+                b64_auth = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+                headers["Authorization"] = f"Basic {b64_auth}"
+            else:
+                payload_dict["client_id"] = client_id
+
+            payload = urllib.parse.urlencode(payload_dict)
+            req = urllib.request.Request(url, data=payload.encode('utf-8'), headers=headers)
             res = urllib.request.urlopen(req, timeout=5)
             if res.status == 200:
                 data = json.loads(res.read().decode('utf-8'))
@@ -63,7 +70,11 @@ class MediaEngine:
                 self.spotify_refresh_token = data.get("refresh_token")
                 expires_in = data.get("expires_in", 3600)
                 self.spotify_token_expires_at = time.time() + expires_in - 60
+                print(f"[MediaEngine] Spotify Token Exchange Success!")
                 return data
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode('utf-8')
+            print(f"[MediaEngine] Spotify Token Exchange HTTP Error {e.code}: {err_body}")
         except Exception as e:
             print(f"[MediaEngine] Spotify Token Exchange Error: {e}")
         return None
@@ -78,15 +89,19 @@ class MediaEngine:
             payload_dict = {
                 "grant_type": "refresh_token",
                 "refresh_token": self.spotify_refresh_token,
-                "client_id": self.spotify_client_id,
             }
-            if self.spotify_client_secret:
-                payload_dict["client_secret"] = self.spotify_client_secret
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            if self.spotify_client_id and self.spotify_client_secret:
+                auth_str = f"{self.spotify_client_id}:{self.spotify_client_secret}"
+                b64_auth = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+                headers["Authorization"] = f"Basic {b64_auth}"
+            else:
+                payload_dict["client_id"] = self.spotify_client_id
 
             payload = urllib.parse.urlencode(payload_dict)
-            req = urllib.request.Request(url, data=payload.encode('utf-8'), headers={
-                "Content-Type": "application/x-www-form-urlencoded"
-            })
+            req = urllib.request.Request(url, data=payload.encode('utf-8'), headers=headers)
             res = urllib.request.urlopen(req, timeout=5)
             if res.status == 200:
                 data = json.loads(res.read().decode('utf-8'))
@@ -97,6 +112,8 @@ class MediaEngine:
                 self.spotify_token_expires_at = time.time() + expires_in - 60
                 print("[MediaEngine] Spotify Access Token refreshed successfully!")
                 return True
+        except urllib.error.HTTPError as e:
+            print(f"[MediaEngine] Spotify Token Refresh HTTP Error {e.code}: {e.read().decode('utf-8')}")
         except Exception as e:
             print(f"[MediaEngine] Spotify Token Refresh Error: {e}")
         return False
