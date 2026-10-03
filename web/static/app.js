@@ -141,6 +141,67 @@ function loadAudioDevices() {
         });
 }
 
+let browserAudioCtx = null;
+let browserAnalyser = null;
+let browserAudioInterval = null;
+
+function startBrowserAudioProcessing(stream) {
+    if (browserAudioInterval) clearInterval(browserAudioInterval);
+    if (browserAudioCtx) {
+        try { browserAudioCtx.close(); } catch(e){}
+    }
+
+    browserAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = browserAudioCtx.createMediaStreamSource(stream);
+    browserAnalyser = browserAudioCtx.createAnalyser();
+    browserAnalyser.fftSize = 512;
+    source.connect(browserAnalyser);
+
+    const bufferLength = browserAnalyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    const waveArray = new Float32Array(bufferLength);
+
+    browserAudioInterval = setInterval(() => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        
+        browserAnalyser.getByteFrequencyData(dataArray);
+        browserAnalyser.getFloatTimeDomainData(waveArray);
+
+        let bassSum = 0, midsSum = 0, trebleSum = 0;
+        const totalBins = dataArray.length;
+
+        for (let i = 0; i < totalBins; i++) {
+            const val = dataArray[i] / 255.0;
+            if (i < totalBins * 0.15) bassSum += val;
+            else if (i < totalBins * 0.6) midsSum += val;
+            else trebleSum += val;
+        }
+
+        const bass = Math.min(1.0, (bassSum / (totalBins * 0.15)) * 2.5);
+        const mids = Math.min(1.0, (midsSum / (totalBins * 0.45)) * 2.5);
+        const treble = Math.min(1.0, (trebleSum / (totalBins * 0.4)) * 2.5);
+        const is_beat = bass > 0.45;
+
+        const waveform = [];
+        for (let i = 0; i < waveArray.length; i += 16) {
+            waveform.push(Math.round(waveArray[i] * 100) / 100);
+        }
+
+        ws.send(JSON.stringify({
+            type: 'browser_audio',
+            metrics: {
+                bass: Math.round(bass * 1000) / 1000,
+                mids: Math.round(mids * 1000) / 1000,
+                treble: Math.round(treble * 1000) / 1000,
+                is_beat: is_beat,
+                mode: 'mic_iphone',
+                sensitivity: 3.0,
+                waveform: waveform
+            }
+        }));
+    }, 33);
+}
+
 function requestBrowserMicrophones() {
     const deviceSelect = document.getElementById('audio-device');
     deviceSelect.innerHTML = '<option value="">Cargando micrófonos del navegador...</option>';
@@ -155,19 +216,20 @@ function requestBrowserMicrophones() {
         };
         navigator.mediaDevices.getUserMedia(constraints)
             .then(stream => {
+                startBrowserAudioProcessing(stream);
                 return navigator.mediaDevices.enumerateDevices();
             })
             .then(devices => {
                 deviceSelect.innerHTML = '';
                 const audioInputs = devices.filter(d => d.kind === 'audioinput');
                 if (audioInputs.length === 0) {
-                    deviceSelect.innerHTML = '<option value="">No se encontraron micrófonos en el navegador</option>';
+                    deviceSelect.innerHTML = '<option value="browser_default">🎙️ Micrófono del Navegador / iPhone (Activo)</option>';
                     return;
                 }
                 audioInputs.forEach((dev, idx) => {
                     const opt = document.createElement('option');
                     opt.value = dev.deviceId;
-                    opt.textContent = `🎙️ ${dev.label || `Micrófono del Navegador #${idx + 1}`}`;
+                    opt.textContent = `🎙️ ${dev.label || `Micrófono del Navegador / iPhone #${idx + 1}`}`;
                     deviceSelect.appendChild(opt);
                 });
             })
@@ -271,33 +333,7 @@ function renderDashboard(data) {
         }
     });
 
-    if (window.location.origin.includes('vercel.app')) {
-        dispatchDirectClientHue(lights);
-    }
-
     drawSpectrum(metrics.waveform || []);
-}
-
-let lastClientHueDispatch = 0;
-function dispatchDirectClientHue(lights) {
-    const ip = document.getElementById('hue-ip').value.trim();
-    const username = document.getElementById('hue-username').value.trim();
-    const now = Date.now();
-
-    if (!ip || !username || (now - lastClientHueDispatch < 100)) return;
-    lastClientHueDispatch = now;
-
-    lights.forEach((light, idx) => {
-        const lightId = light.id || (idx + 1);
-        const url = `http://${ip}/api/${username}/lights/${lightId}/state`;
-        const body = JSON.stringify({
-            on: true,
-            xy: light.xy,
-            bri: light.brightness,
-            transitiontime: 1
-        });
-        fetch(url, { method: 'PUT', body: body, mode: 'no-cors' }).catch(() => {});
-    });
 }
 
 function drawSpectrum(waveform) {

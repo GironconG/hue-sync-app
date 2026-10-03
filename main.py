@@ -240,10 +240,27 @@ async def search_media(payload: SearchMediaPayload):
 async def websocket_sync(websocket: WebSocket):
     await websocket.accept()
     last_hue_update = 0.0
+    client_audio_metrics = None
+
+    async def receive_loop():
+        nonlocal client_audio_metrics
+        try:
+            while True:
+                text = await websocket.receive_text()
+                data = json.loads(text)
+                if data.get("type") == "browser_audio":
+                    client_audio_metrics = data.get("metrics")
+                elif data.get("type") == "reset_audio":
+                    client_audio_metrics = None
+        except Exception:
+            pass
+
+    receive_task = asyncio.create_task(receive_loop())
+
     try:
         while True:
-            # 1. Fetch live metrics from Audio Engine
-            audio_metrics = audio_engine.get_metrics()
+            # 1. Fetch live metrics (use browser mic metrics if active, else server audio engine)
+            audio_metrics = client_audio_metrics if client_audio_metrics else audio_engine.get_metrics()
 
             # 2. Fetch live track info from Media Engine
             track_info = media_engine.get_track_info()
@@ -277,6 +294,8 @@ async def websocket_sync(websocket: WebSocket):
         pass
     except Exception as e:
         print(f"[WebSocket] Disconnected: {e}")
+    finally:
+        receive_task.cancel()
 
 if __name__ == "__main__":
     import uvicorn
