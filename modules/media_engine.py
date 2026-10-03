@@ -146,6 +146,7 @@ class MediaEngine:
                     track_id = item.get("id")
                     progress_ms = data.get("progress_ms", 0)
                     duration_ms = item.get("duration_ms", 1000)
+                    is_playing = data.get("is_playing", True)
 
                     if title != self.current_track["title"]:
                         if artwork_url:
@@ -165,6 +166,7 @@ class MediaEngine:
                         "album": album_name,
                         "artwork_url": artwork_url or self.current_track["artwork_url"],
                         "provider": "spotify",
+                        "is_playing": is_playing,
                         "progress_ms": progress_ms,
                         "duration_ms": duration_ms
                     })
@@ -201,6 +203,16 @@ class MediaEngine:
 
     def get_spotify_live_analysis_metrics(self):
         """Calculates exact millisecond beat pulse, energy, and section loudness from Spotify Audio Analysis."""
+        if not self.current_track.get("is_playing", True):
+            return {
+                "is_spotify_beat": False,
+                "energy": 0.0,
+                "tempo": 0.0,
+                "danceability": 0.0,
+                "is_playing": False,
+                "current_pos_sec": 0.0
+            }
+
         if not hasattr(self, 'spotify_analysis') or not self.spotify_analysis or not self.current_track.get("progress_ms"):
             return None
 

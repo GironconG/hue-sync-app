@@ -176,11 +176,11 @@ class AudioEngine:
         norm_mids = (raw_mids / self.mids_peak) * (self.sensitivity / 3.0)
         norm_treble = (raw_treble / self.treble_peak) * (self.sensitivity / 3.0)
 
-        # Scale down if audio is almost silent (RMS < 0.001)
-        if rms < 0.001 and self.mode == "mic":
-            norm_bass *= 0.1
-            norm_mids *= 0.1
-            norm_treble *= 0.1
+        # Noise gate: zero out if audio is silent (RMS < 0.005)
+        if rms < 0.005 and self.mode == "mic":
+            norm_bass = 0.0
+            norm_mids = 0.0
+            norm_treble = 0.0
 
         self.bass = float(np.clip(norm_bass, 0.0, 1.0))
         self.mids = float(np.clip(norm_mids, 0.0, 1.0))

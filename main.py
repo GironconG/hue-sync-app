@@ -271,10 +271,16 @@ async def websocket_sync(websocket: WebSocket):
             spotify_analysis_metrics = media_engine.get_spotify_live_analysis_metrics()
             if spotify_analysis_metrics:
                 track_info["analysis"] = spotify_analysis_metrics
-                if spotify_analysis_metrics.get("is_spotify_beat"):
-                    audio_metrics["is_beat"] = True
-                energy = spotify_analysis_metrics.get("energy", 0.5)
-                audio_metrics["bass"] = min(1.0, audio_metrics["bass"] * (0.8 + energy * 0.4))
+                if spotify_analysis_metrics.get("is_playing") == False or track_info.get("is_playing") == False:
+                    audio_metrics["bass"] = 0.0
+                    audio_metrics["mids"] = 0.0
+                    audio_metrics["treble"] = 0.0
+                    audio_metrics["is_beat"] = False
+                else:
+                    if spotify_analysis_metrics.get("is_spotify_beat"):
+                        audio_metrics["is_beat"] = True
+                    energy = spotify_analysis_metrics.get("energy", 0.5)
+                    audio_metrics["bass"] = min(1.0, audio_metrics["bass"] * (0.8 + energy * 0.4))
 
             # Apply artwork palette if selected
             if color_mapper.palette_name == "album_art" and track_info.get("palette_hsv"):
