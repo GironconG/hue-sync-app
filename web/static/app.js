@@ -264,7 +264,33 @@ function renderDashboard(data) {
         }
     });
 
+    if (window.location.origin.includes('vercel.app')) {
+        dispatchDirectClientHue(lights);
+    }
+
     drawSpectrum(metrics.waveform || []);
+}
+
+let lastClientHueDispatch = 0;
+function dispatchDirectClientHue(lights) {
+    const ip = document.getElementById('hue-ip').value.trim();
+    const username = document.getElementById('hue-username').value.trim();
+    const now = Date.now();
+
+    if (!ip || !username || (now - lastClientHueDispatch < 100)) return;
+    lastClientHueDispatch = now;
+
+    lights.forEach((light, idx) => {
+        const lightId = light.id || (idx + 1);
+        const url = `http://${ip}/api/${username}/lights/${lightId}/state`;
+        const body = JSON.stringify({
+            on: true,
+            xy: light.xy,
+            bri: light.brightness,
+            transitiontime: 1
+        });
+        fetch(url, { method: 'PUT', body: body, mode: 'no-cors' }).catch(() => {});
+    });
 }
 
 function drawSpectrum(waveform) {
