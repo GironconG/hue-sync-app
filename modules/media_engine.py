@@ -5,7 +5,11 @@ import urllib.request
 import urllib.parse
 import colorsys
 import numpy as np
-from PIL import Image
+try:
+    from PIL import Image
+    HAS_PIL = True
+except Exception:
+    HAS_PIL = False
 
 class MediaEngine:
     """
@@ -177,7 +181,7 @@ class MediaEngine:
 
     def extract_palette_from_url(self, image_url):
         """Downloads cover artwork and extracts top 4 vibrant HSV color tuples."""
-        if not image_url or image_url.startswith("/static"):
+        if not HAS_PIL or not image_url or image_url.startswith("/static"):
             return []
         try:
             req = urllib.request.Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
