@@ -1,0 +1,7 @@
+numpy
+fastapi
+uvicorn
+sounddevice
+requests
+pydantic
+jinja2

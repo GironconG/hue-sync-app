@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HueSync Base - Sincronizador de Luces iLightShow Replica</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="icon">💡⚡</span>
+                <h1>HueSync <span class="badge">Base App</span></h1>
+            </div>
+            <p class="subtitle">Sincronización de luces Philips Hue con música en tiempo real (Réplica iLightShow)</p>
+        </header>
+
+        <!-- Media Player Metadata Banner -->
+        <div class="card media-banner" id="media-card">
+            <div class="media-artwork">
+                <img id="track-art" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80" alt="Album Cover">
+            </div>
+            <div class="media-info">
+                <span class="provider-badge" id="track-provider">Modo Simulación / Prueba</span>
+                <h2 id="track-title">Blinding Lights</h2>
+                <p id="track-artist">The Weeknd</p>
+                <p class="track-album" id="track-album">After Hours</p>
+            </div>
+            <div class="media-actions">
+                <div class="form-group">
+                    <label>Probar Canción / Apple Music:</label>
+                    <div class="search-input-group">
+                        <input type="text" id="media-search-input" placeholder="ej. The Weeknd Blinding Lights">
+                        <button onclick="searchMediaSong()" class="btn-secondary">Buscar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-grid">
+            
+            <!-- Left Panel: Virtual Room & Lights -->
+            <div class="card room-card">
+                <h2>Luces Conectadas / Habitación</h2>
+                <div class="beat-status" id="beat-indicator">
+                    <span class="beat-dot"></span>
+                    <span class="beat-label">RITMO / BEAT</span>
+                </div>
+
+                <div class="bulbs-container" id="bulbs-container">
+                    <div class="bulb-card" id="bulb-1">
+                        <div class="glow-effect"></div>
+                        <div class="bulb-icon">💡</div>
+                        <div class="bulb-name">Luz #1</div>
+                        <div class="bulb-hex">#000000</div>
+                    </div>
+                    <div class="bulb-card" id="bulb-2">
+                        <div class="glow-effect"></div>
+                        <div class="bulb-icon">💡</div>
+                        <div class="bulb-name">Luz #2</div>
+                        <div class="bulb-hex">#000000</div>
+                    </div>
+                    <div class="bulb-card" id="bulb-3">
+                        <div class="glow-effect"></div>
+                        <div class="bulb-icon">💡</div>
+                        <div class="bulb-name">Luz #3</div>
+                        <div class="bulb-hex">#000000</div>
+                    </div>
+                    <div class="bulb-card" id="bulb-4">
+                        <div class="glow-effect"></div>
+                        <div class="bulb-icon">💡</div>
+                        <div class="bulb-name">Luz #4</div>
+                        <div class="bulb-hex">#000000</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Audio Spectrum & Controls -->
+            <div class="card audio-card">
+                <h2>Espectro de Audio FFT en Tiempo Real</h2>
+                
+                <canvas id="spectrum-canvas" width="400" height="150"></canvas>
+
+                <div class="bands-container">
+                    <div class="band-meter">
+                        <label>Graves (Bass / Bombo)</label>
+                        <div class="meter-bar-wrapper">
+                            <div class="meter-fill" id="meter-bass"></div>
+                        </div>
+                    </div>
+                    <div class="band-meter">
+                        <label>Medios (Mids / Voces)</label>
+                        <div class="meter-bar-wrapper">
+                            <div class="meter-fill" id="meter-mids"></div>
+                        </div>
+                    </div>
+                    <div class="band-meter">
+                        <label>Agudos (Treble / Platos)</label>
+                        <div class="meter-bar-wrapper">
+                            <div class="meter-fill" id="meter-treble"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls-section">
+                    <h3>Configuración de Audio & Paleta</h3>
+                    
+                    <div class="form-group">
+                        <label for="audio-mode">Fuente de Sonido:</label>
+                        <select id="audio-mode" onchange="updateSettings()">
+                            <option value="simulator">Sintetizador de Música (Demo BPM)</option>
+                            <option value="mic">Micrófono / Entrada de Audio Real</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="device-group">
+                        <label for="audio-device">Dispositivo de Entrada de Micrófono:</label>
+                        <select id="audio-device" onchange="updateSettings()">
+                            <option value="">Cargando dispositivos...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="audio-sensitivity">Sensibilidad de Ganancia: <span id="sens-val">3.0x</span></label>
+                        <input type="range" id="audio-sensitivity" min="1.0" max="10.0" step="0.5" value="3.0" oninput="updateSettings()">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="theme-select">Paleta de Color de las Luces:</label>
+                        <select id="theme-select" onchange="updateSettings()">
+                            <option value="album_art">🎨 Paleta de la Portada del Álbum (Color Matching)</option>
+                            <option value="cyberpunk">Cyberpunk Neon (Magenta / Cyan)</option>
+                            <option value="sunset">Atardecer (Naranja / Rosa)</option>
+                            <option value="neon_party">Fiesta Neon (Verde / Fucsia)</option>
+                            <option value="chill_vibes">Chill Vibes (Menta / Azul)</option>
+                        </select>
+                    </div>
+
+                    <hr class="divider">
+
+                    <h3>Conectar Cuenta de Spotify</h3>
+                    <div class="form-group">
+                        <label>Spotify Client ID:</label>
+                        <input type="text" id="spotify-client-id-input" placeholder="Tu Spotify Client ID">
+                    </div>
+                    <div style="margin-bottom: 12px; font-size: 0.82rem; color: #94a3b8; background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155;">
+                        <strong style="color: #38bdf8;">⚠️ Requisito en Spotify Developer Dashboard:</strong><br>
+                        En <a href="https://developer.spotify.com/dashboard" target="_blank" style="color: #1db954;">developer.spotify.com/dashboard</a> -> Tu App -> <strong>Settings</strong> -> <strong>Redirect URIs</strong>, agrega exactamente:<br>
+                        <code style="color: #f43f5e; background: #1e293b; padding: 2px 5px; border-radius: 4px; display: inline-block; margin-top: 4px;">http://127.0.0.1:8000/spotify/callback</code><br>
+                        <code style="color: #f43f5e; background: #1e293b; padding: 2px 5px; border-radius: 4px; display: inline-block; margin-top: 4px;">http://localhost:8000/spotify/callback</code>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <button onclick="loginWithSpotify()" class="btn-spotify">
+                            🟢 Iniciar Sesión con Spotify (OAuth Directo)
+                        </button>
+                    </div>
+
+                    <div class="spotify-auth-group">
+                        <input type="password" id="spotify-token-input" placeholder="O pega un Access Token directo">
+                        <button onclick="saveSpotifyToken()" class="btn-secondary">Conectar Token Directo</button>
+                    </div>
+
+                    <hr class="divider">
+
+                    <h3>Vincular & Forzar Control Philips Hue</h3>
+                    
+                    <div class="hue-auto-pair">
+                        <button onclick="pairWithHueButton()" class="btn-pair" id="btn-pair">
+                            🔘 Vincular Automáticamente (Presiona el Botón del Hue Bridge)
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                        <button onclick="forceTakeover()" class="btn-override" id="btn-override">
+                            ⚡ Forzar Control de Luces (Anular otras Apps)
+                        </button>
+                    </div>
+
+                    <div class="hue-connection-form" style="margin-top: 12px;">
+                        <input type="text" id="hue-ip" placeholder="IP de la Hue Bridge (opcional)">
+                        <input type="text" id="hue-username" placeholder="API Key / Username">
+                        <button onclick="connectBridge()" class="btn-secondary">Conectar Manualmente</button>
+                    </div>
+                    <p class="status-box" id="bridge-status">Estado: Listo.</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
