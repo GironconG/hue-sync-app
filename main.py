@@ -262,10 +262,19 @@ async def websocket_sync(websocket: WebSocket):
     try:
         while True:
             # 1. Fetch live metrics (use browser mic metrics if active, else server audio engine)
-            audio_metrics = client_audio_metrics if client_audio_metrics else audio_engine.get_metrics()
+            audio_metrics = client_audio_metrics.copy() if client_audio_metrics else audio_engine.get_metrics().copy()
 
             # 2. Fetch live track info from Media Engine
             track_info = media_engine.get_track_info()
+
+            # Merge Spotify Audio Analysis millisecond beat precision (iLightShow engine)
+            spotify_analysis_metrics = media_engine.get_spotify_live_analysis_metrics()
+            if spotify_analysis_metrics:
+                track_info["analysis"] = spotify_analysis_metrics
+                if spotify_analysis_metrics.get("is_spotify_beat"):
+                    audio_metrics["is_beat"] = True
+                energy = spotify_analysis_metrics.get("energy", 0.5)
+                audio_metrics["bass"] = min(1.0, audio_metrics["bass"] * (0.8 + energy * 0.4))
 
             # Apply artwork palette if selected
             if color_mapper.palette_name == "album_art" and track_info.get("palette_hsv"):

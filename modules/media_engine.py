@@ -143,14 +143,23 @@ class MediaEngine:
                     images = item.get("album", {}).get("images", [])
                     artwork_url = images[0]["url"] if images else None
 
+                    track_id = item.get("id")
                     progress_ms = data.get("progress_ms", 0)
                     duration_ms = item.get("duration_ms", 1000)
 
-                    if title != self.current_track["title"] and artwork_url:
-                        palette = self.extract_palette_from_url(artwork_url)
-                        self.current_track["palette_hsv"] = palette
+                    if title != self.current_track["title"]:
+                        if artwork_url:
+                            palette = self.extract_palette_from_url(artwork_url)
+                            self.current_track["palette_hsv"] = palette
+                        
+                        if track_id:
+                            self.spotify_features = self.fetch_spotify_audio_features(track_id)
+                            self.spotify_analysis = self.fetch_spotify_audio_analysis(track_id)
+                            if self.spotify_features:
+                                print(f"[MediaEngine] Spotify Audio Features for '{title}': Energy={self.spotify_features.get('energy')}, Tempo={self.spotify_features.get('tempo')} BPM")
 
                     self.current_track.update({
+                        "id": track_id,
                         "title": title,
                         "artist": artists,
                         "album": album_name,
@@ -163,6 +172,61 @@ class MediaEngine:
         except Exception as e:
             print(f"[MediaEngine] Spotify API Error: {e}")
         return None
+
+    def fetch_spotify_audio_features(self, track_id):
+        if not track_id or not self.spotify_access_token:
+            return None
+        try:
+            url = f"https://api.spotify.com/v1/audio-features/{track_id}"
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.spotify_access_token}"})
+            res = urllib.request.urlopen(req, timeout=3)
+            if res.status == 200:
+                return json.loads(res.read().decode('utf-8'))
+        except Exception as e:
+            print(f"[MediaEngine] Audio features error: {e}")
+        return None
+
+    def fetch_spotify_audio_analysis(self, track_id):
+        if not track_id or not self.spotify_access_token:
+            return None
+        try:
+            url = f"https://api.spotify.com/v1/audio-analysis/{track_id}"
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.spotify_access_token}"})
+            res = urllib.request.urlopen(req, timeout=4)
+            if res.status == 200:
+                return json.loads(res.read().decode('utf-8'))
+        except Exception as e:
+            print(f"[MediaEngine] Audio analysis error: {e}")
+        return None
+
+    def get_spotify_live_analysis_metrics(self):
+        """Calculates exact millisecond beat pulse, energy, and section loudness from Spotify Audio Analysis."""
+        if not hasattr(self, 'spotify_analysis') or not self.spotify_analysis or not self.current_track.get("progress_ms"):
+            return None
+
+        elapsed_since_fetch = time.time() - self.last_fetch_time
+        current_pos_sec = (self.current_track.get("progress_ms", 0) / 1000.0) + elapsed_since_fetch
+
+        beats = self.spotify_analysis.get("beats", [])
+        is_beat = False
+        for b in beats:
+            start = b.get("start", 0)
+            if abs(current_pos_sec - start) < 0.09:
+                is_beat = True
+                break
+
+        features = getattr(self, 'spotify_features', None) or {}
+        energy = features.get("energy", 0.5)
+        tempo = features.get("tempo", 120.0)
+        danceability = features.get("danceability", 0.5)
+
+        return {
+            "is_spotify_beat": is_beat,
+            "energy": energy,
+            "tempo": tempo,
+            "danceability": danceability,
+            "current_pos_sec": round(current_pos_sec, 2)
+        }
 
     def fetch_apple_music_itunes_search(self, song_query):
         """Queries iTunes / Apple Music API for song metadata and high-res cover artwork."""
