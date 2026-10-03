@@ -125,7 +125,7 @@ function loadAudioDevices() {
             deviceSelect.innerHTML = '';
             const devices = data.devices || [];
             if (devices.length === 0) {
-                deviceSelect.innerHTML = '<option value="">No se encontraron micrófonos</option>';
+                requestBrowserMicrophones();
                 return;
             }
             devices.forEach(dev => {
@@ -137,8 +137,39 @@ function loadAudioDevices() {
             });
         })
         .catch(err => {
-            console.error('Error loading audio devices:', err);
+            requestBrowserMicrophones();
         });
+}
+
+function requestBrowserMicrophones() {
+    const deviceSelect = document.getElementById('audio-device');
+    deviceSelect.innerHTML = '<option value="">Cargando micrófonos del navegador...</option>';
+    
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                return navigator.mediaDevices.enumerateDevices();
+            })
+            .then(devices => {
+                deviceSelect.innerHTML = '';
+                const audioInputs = devices.filter(d => d.kind === 'audioinput');
+                if (audioInputs.length === 0) {
+                    deviceSelect.innerHTML = '<option value="">No se encontraron micrófonos en el navegador</option>';
+                    return;
+                }
+                audioInputs.forEach((dev, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = dev.deviceId;
+                    opt.textContent = `🎙️ ${dev.label || `Micrófono del Navegador #${idx + 1}`}`;
+                    deviceSelect.appendChild(opt);
+                });
+            })
+            .catch(err => {
+                deviceSelect.innerHTML = '<option value="">⚠️ Permiso de Micrófono Denegado (Haz clic en el candado del navegador)</option>';
+            });
+    } else {
+        deviceSelect.innerHTML = '<option value="">No disponible en este navegador</option>';
+    }
 }
 
 function renderDashboard(data) {
