@@ -99,7 +99,7 @@ class SearchMediaPayload(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index(request: Request):
-    return templates.TemplateResponse(request, "index.html")
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/api/config")
 async def get_app_config():

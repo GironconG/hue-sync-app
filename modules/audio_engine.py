@@ -5,7 +5,7 @@ import numpy as np
 try:
     import sounddevice as sd
     HAS_SOUNDDEVICE = True
-except Exception:
+except (Exception, OSError):
     HAS_SOUNDDEVICE = False
 
 class AudioEngine:
