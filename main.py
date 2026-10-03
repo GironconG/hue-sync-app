@@ -168,6 +168,11 @@ async def connect_bridge(payload: BridgePayload):
 DEFAULT_SPOTIFY_CLIENT_ID = "9a0069b06ee54e049ad75eaf99e986fd"
 DEFAULT_SPOTIFY_CLIENT_SECRET = "fc9bd1da860d430fae4cdf4039d956ab"
 
+def get_redirect_uri(request: Request) -> str:
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("host", request.url.netloc)
+    return f"{proto}://{host}/spotify/callback"
+
 class DirectTokenPayload(BaseModel):
     token: str
 
@@ -177,7 +182,7 @@ async def spotify_login(request: Request, client_id: Optional[str] = None):
     cid = client_id or cfg.get("spotify_client_id") or DEFAULT_SPOTIFY_CLIENT_ID
     save_config({"spotify_client_id": cid})
     
-    redirect_uri = str(request.url_for('spotify_callback'))
+    redirect_uri = get_redirect_uri(request)
     scope = "user-read-currently-playing user-read-playback-state user-read-playback-position"
     
     params = {
@@ -195,7 +200,7 @@ async def spotify_callback(request: Request, code: str):
     cfg = load_config()
     cid = cfg.get("spotify_client_id", DEFAULT_SPOTIFY_CLIENT_ID)
     csecret = cfg.get("spotify_client_secret", DEFAULT_SPOTIFY_CLIENT_SECRET)
-    redirect_uri = str(request.url_for('spotify_callback'))
+    redirect_uri = get_redirect_uri(request)
 
     result = media_engine.exchange_spotify_code(code, redirect_uri, cid, csecret)
     if result:
