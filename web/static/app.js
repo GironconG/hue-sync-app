@@ -146,7 +146,14 @@ function requestBrowserMicrophones() {
     deviceSelect.innerHTML = '<option value="">Cargando micrófonos del navegador...</option>';
     
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ audio: true })
+        const constraints = {
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false,
+            }
+        };
+        navigator.mediaDevices.getUserMedia(constraints)
             .then(stream => {
                 return navigator.mediaDevices.enumerateDevices();
             })
@@ -396,33 +403,43 @@ function pairWithHueButton() {
     statusEl.textContent = '🔍 Buscando Hue Bridge en la red local... Por favor espera.';
     btnPair.disabled = true;
 
-    fetch('/api/pair_hue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip: targetIp })
-    })
-    .then(res => res.json())
-    .then(data => {
-        btnPair.disabled = false;
-        if (data.ip) ipInput.value = data.ip;
+    fetch('https://discovery.meethue.com')
+        .then(res => res.json())
+        .then(bridges => {
+            if (bridges && bridges.length > 0 && bridges[0].internalipaddress) {
+                ipInput.value = bridges[0].internalipaddress;
+            }
+        })
+        .catch(() => {})
+        .finally(() => {
+            fetch('/api/pair_hue', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ipInput.value.trim() || targetIp })
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnPair.disabled = false;
+                if (data.ip) ipInput.value = data.ip;
 
-        if (data.status === 'button_not_pressed') {
-            statusEl.className = 'status-box warn';
-            statusEl.innerHTML = `⚠️ <strong>${data.message}</strong>`;
-        } else if (data.status === 'success') {
-            statusEl.className = 'status-box success';
-            statusEl.innerHTML = `✅ <strong>${data.message}</strong>`;
-            if (data.username) userInput.value = data.username;
-        } else {
-            statusEl.className = 'status-box warn';
-            statusEl.textContent = `❌ ${data.message}`;
-        }
-    })
-    .catch(err => {
-        btnPair.disabled = false;
-        statusEl.className = 'status-box warn';
-        statusEl.textContent = `❌ Error de red al intentar conectar: ${err}`;
-    });
+                if (data.status === 'button_not_pressed') {
+                    statusEl.className = 'status-box warn';
+                    statusEl.innerHTML = `⚠️ <strong>${data.message}</strong>`;
+                } else if (data.status === 'success') {
+                    statusEl.className = 'status-box success';
+                    statusEl.innerHTML = `✅ <strong>${data.message}</strong>`;
+                    if (data.username) userInput.value = data.username;
+                } else {
+                    statusEl.className = 'status-box warn';
+                    statusEl.textContent = `❌ ${data.message}`;
+                }
+            })
+            .catch(err => {
+                btnPair.disabled = false;
+                statusEl.className = 'status-box warn';
+                statusEl.textContent = `❌ Error de red al intentar conectar: ${err}`;
+            });
+        });
 }
 
 function forceTakeover() {
